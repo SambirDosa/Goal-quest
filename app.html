@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goal Quest - Gamify Your Goals</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel Standalone for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: #0f172a;
+            color: #f1f5f9;
+        }
+        
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(to right, #a855f7, #3b82f6);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #334155;
+            color: #f1f5f9;
+        }
+        
+        .btn-outline:hover {
+            background: #334155;
+        }
+        
+        .input, .textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            border: 1px solid #334155;
+            background: #1e293b;
+            color: #f1f5f9;
+        }
+        
+        .textarea {
+            resize: none;
+            min-height: 120px;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 0.75rem;
+            background: #334155;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(to right, #a855f7, #3b82f6);
+            transition: width 0.3s;
+        }
+        
+        .checkbox {
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 0.25rem;
+            border: 2px solid #334155;
+            cursor: pointer;
+        }
+        
+        .checkbox:checked {
+            background: #a855f7;
+            border-color: #a855f7;
+        }
+        
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            padding: 1rem;
+        }
+        
+        .modal {
+            background: #1e293b;
+            border: 2px solid #a855f7;
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 28rem;
+            width: 100%;
+            position: relative;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Toast Component
+        function Toast({ message, onClose }) {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 3000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+
+            return (
+                <div className="toast">
+                    <p>{message}</p>
+                </div>
+            );
+        }
+
+        // Icon Components (using Lucide)
+        function Icon({ name, className = "", size = 24 }) {
+            useEffect(() => {
+                lucide.createIcons();
+            });
+            
+            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
+        }
+
+        // Goal Generator Functions
+        function generateGoalFromRequest(request) {
+            const requestLower = request.toLowerCase();
+            
+            if (requestLower.includes("a's") || requestLower.includes('grades') || requestLower.includes('school')) {
+                return {
+                    id: 'goal-' + Date.now(),
+                    title: 'Academic Excellence Quest',
+                    description: "Achieve all A's by the end of the year through consistent study habits, effective learning strategies, and regular practice.",
+                    deadline: 'December 31, 2025',
+                    milestones: [
+                        {
+                            id: 'milestone-1',
+                            title: 'Build Strong Study Foundations',
+                            description: 'Establish a consistent study routine and organize all class materials',
+                            timeframe: 'Weeks 1-2'
+                        },
+                        {
+                            id: 'milestone-2',
+                            title: 'Master Time Management',
+                            description: 'Create and follow a weekly schedule balancing all subjects',
+                            timeframe: 'Weeks 3-4'
+                        },
+                        {
+                            id: 'milestone-3',
+                            title: 'Excel in Each Subject',
+                            description: 'Focus on weak areas and maintain strong performance in all classes',
+                            timeframe: 'Weeks 5-8'
+                        },
+                        {
+                            id: 'milestone-4',
+                            title: 'Test Preparation Excellence',
+                            description: 'Develop effective test-taking strategies and review techniques',
+                            timeframe: 'Weeks 9-12'
+                        },
+                        {
+                            id: 'milestone-5',
+                            title: 'Maintain Peak Performance',
+                            description: 'Continue strong habits and finish the year strong',
+                            timeframe: 'Remaining weeks'
+                        }
+                    ]
+                };
+            }
+            
+            if (requestLower.includes('fit') || requestLower.includes('weight') || requestLower.includes('exercise')) {
+                return {
+                    id: 'goal-' + Date.now(),
+                    title: 'Fitness Transformation Quest',
+                    description: 'Get fit and healthy through consistent exercise, proper nutrition, and lifestyle changes.',
+                    deadline: '90 days from now',
+                    milestones: [
+                        {
+                            id: 'milestone-1',
+                            title: 'Establish Exercise Routine',
+                            description: 'Start with basic exercises and build a sustainable workout habit',
+                            timeframe: 'Weeks 1-3'
+                        },
+                        {
+                            id: 'milestone-2',
+                            title: 'Nutrition Foundation',
+                            description: 'Learn and implement healthy eating habits and meal planning',
+                            timeframe: 'Weeks 4-6'
+                        },
+                        {
+                            id: 'milestone-3',
+                            title: 'Increase Intensity',
+                            description: 'Progress to more challenging workouts and track improvements',
+                            timeframe: 'Weeks 7-9'
+                        },
+                        {
+                            id: 'milestone-4',
+                            title: 'Lifestyle Integration',
+                            description: 'Make fitness a natural part of daily life and overcome plateaus',
+                            timeframe: 'Weeks 10-12'
+                        }
+                    ]
+                };
+            }
+            
+            if (requestLower.includes('learn') || requestLower.includes('guitar') || requestLower.includes('skill')) {
+                return {
+                    id: 'goal-' + Date.now(),
+                    title: 'Skill Mastery Quest',
+                    description: 'Learn and master a new skill through dedicated practice and progressive learning.',
+                    deadline: '3 months from now',
+                    milestones: [
+                        {
+                            id: 'milestone-1',
+                            title: 'Foundation & Basics',
+                            description: 'Learn fundamental techniques and basic theory',
+                            timeframe: 'Weeks 1-3'
+                        },
+                        {
+                            id: 'milestone-2',
+                            title: 'Skill Building',
+                            description: 'Practice core skills and develop muscle memory',
+                            timeframe: 'Weeks 4-6'
+                        },
+                        {
+                            id: 'milestone-3',
+                            title: 'Intermediate Progress',
+                            description: 'Tackle more complex techniques and concepts',
+                            timeframe: 'Weeks 7-9'
+                        },
+                        {
+                            id: 'milestone-4',
+                            title: 'Proficiency & Polish',
+                            description: 'Refine skills and work on performance quality',
+                            timeframe: 'Weeks 10-12'
+                        }
+                    ]
+                };
+            }
+            
+            return {
+                id: 'goal-' + Date.now(),
+                title: 'Personal Achievement Quest',
+                description: `Achieve your goal: "${request}" through consistent daily actions and strategic planning.`,
+                deadline: '90 days from now',
+                milestones: [
+                    {
+                        id: 'milestone-1',
+                        title: 'Planning & Preparation',
+                        description: 'Define clear objectives and prepare necessary resources',
+                        timeframe: 'Weeks 1-2'
+                    },
+                    {
+                        id: 'milestone-2',
+                        title: 'Initial Progress',
+                        description: 'Build momentum with consistent daily actions',
+                        timeframe: 'Weeks 3-5'
+                    },
+                    {
+                        id: 'milestone-3',
+                        title: 'Accelerate Growth',
+                        description: 'Increase efforts and overcome challenges',
+                        timeframe: 'Weeks 6-8'
+                    },
+                    {
+                        id: 'milestone-4',
+                        title: 'Final Push',
+                        description: 'Complete remaining tasks and achieve your goal',
+                        timeframe: 'Weeks 9-12'
+                    }
+                ]
+            };
+        }
+
+        function generateDailyActivities(goal) {
+            const goalTitleLower = goal.title.toLowerCase();
+            
+            if (goalTitleLower.includes('academic')) {
+                return [
+                    {
+                        id: 'activity-1',
+                        title: "Review Today's Class Notes",
+                        description: 'Go through all notes from today and highlight key concepts',
+                        xpReward: 25,
+                        completed: false,
+                        category: 'Review'
+                    },
+                    {
+                        id: 'activity-2',
+                        title: 'Complete Homework Assignments',
+                        description: "Finish all assigned homework for tomorrow's classes",
+                        xpReward: 50,
+                        completed: false,
+                        category: 'Study'
+                    },
+                    {
+                        id: 'activity-3',
+                        title: 'Study for 30 Minutes',
+                        description: 'Focus on your weakest subject using active recall',
+                        xpReward: 35,
+                        completed: false,
+                        category: 'Study'
+                    },
+                    {
+                        id: 'activity-4',
+                        title: 'Create Study Materials',
+                        description: 'Make flashcards or summary notes for upcoming tests',
+                        xpReward: 30,
+                        completed: false,
+                        category: 'Practice'
+                    },
+                    {
+                        id: 'activity-5',
+                        title: "Plan Tomorrow's Tasks",
+                        description: "Review tomorrow's schedule and prepare materials needed",
+                        xpReward: 20,
+                        completed: false,
+                        category: 'Planning'
+                    }
+                ];
+            }
+            
+            if (goalTitleLower.includes('fitness')) {
+                return [
+                    {
+                        id: 'activity-1',
+                        title: 'Morning Workout',
+                        description: 'Complete 30-minute workout session',
+                        xpReward: 50,
+                        completed: false,
+                        category: 'Exercise'
+                    },
+                    {
+                        id: 'activity-2',
+                        title: 'Track Your Meals',
+                        description: 'Log all meals and snacks in your food diary',
+                        xpReward: 25,
+                        completed: false,
+                        category: 'Planning'
+                    },
+                    {
+                        id: 'activity-3',
+                        title: 'Drink 8 Glasses of Water',
+                        description: 'Stay hydrated throughout the day',
+                        xpReward: 20,
+                        completed: false,
+                        category: 'Practice'
+                    },
+                    {
+                        id: 'activity-4',
+                        title: 'Evening Stretching',
+                        description: '15 minutes of stretching and cool down',
+                        xpReward: 30,
+                        completed: false,
+                        category: 'Exercise'
+                    },
+                    {
+                        id: 'activity-5',
+                        title: 'Prepare Healthy Meals',
+                        description: 'Prep meals for tomorrow following your nutrition plan',
+                        xpReward: 35,
+                        completed: false,
+                        category: 'Planning'
+                    }
+                ];
+            }
+            
+            if (goalTitleLower.includes('skill')) {
+                return [
+                    {
+                        id: 'activity-1',
+                        title: 'Practice Session',
+                        description: '45-minute focused practice on core techniques',
+                        xpReward: 50,
+                        completed: false,
+                        category: 'Practice'
+                    },
+                    {
+                        id: 'activity-2',
+                        title: 'Watch Tutorial',
+                        description: 'Study one instructional video or lesson',
+                        xpReward: 30,
+                        completed: false,
+                        category: 'Study'
+                    },
+                    {
+                        id: 'activity-3',
+                        title: 'Review Fundamentals',
+                        description: 'Revisit and practice basic techniques',
+                        xpReward: 25,
+                        completed: false,
+                        category: 'Review'
+                    },
+                    {
+                        id: 'activity-4',
+                        title: 'Learn New Concept',
+                        description: 'Study one new technique or theory element',
+                        xpReward: 35,
+                        completed: false,
+                        category: 'Study'
+                    },
+                    {
+                        id: 'activity-5',
+                        title: 'Track Your Progress',
+                        description: 'Record what you learned and areas to improve',
+                        xpReward: 20,
+                        completed: false,
+                        category: 'Planning'
+                    }
+                ];
+            }
+            
+            return [
+                {
+                    id: 'activity-1',
+                    title: 'Work on Main Task',
+                    description: 'Spend focused time on your primary goal activity',
+                    xpReward: 50,
+                    completed: false,
+                    category: 'Practice'
+                },
+                {
+                    id: 'activity-2',
+                    title: 'Research & Learning',
+                    description: 'Study relevant information to help achieve your goal',
+                    xpReward: 30,
+                    completed: false,
+                    category: 'Study'
+                },
+                {
+                    id: 'activity-3',
+                    title: 'Daily Review',
+                    description: "Review progress and identify what's working",
+                    xpReward: 25,
+                    completed: false,
+                    category: 'Review'
+                },
+                {
+                    id: 'activity-4',
+                    title: 'Skill Practice',
+                    description: 'Practice specific skills needed for your goal',
+                    xpReward: 35,
+                    completed: false,
+                    category: 'Practice'
+                },
+                {
+                    id: 'activity-5',
+                    title: 'Plan Next Steps',
+                    description: "Outline tomorrow's tasks and priorities",
+                    xpReward: 20,
+                    completed: false,
+                    category: 'Planning'
+                }
+            ];
+        }
+
+        // Components
+        function GoalInput({ onGenerateGoal, isGenerating }) {
+            const [goalRequest, setGoalRequest] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (goalRequest.trim()) {
+                    onGenerateGoal(goalRequest);
+                }
+            };
+
+            const exampleGoals = [
+                "Help me get all A's by the end of the year",
+                "Learn to play guitar in 3 months",
+                "Get fit and lose 15 pounds",
+                "Start a successful side hustle",
+            ];
+
+            return (
+                <div className="max-w-2xl mx-auto space-y-6 p-4">
+                    <div className="text-center space-y-4">
+                        <div className="flex items-center justify-center gap-3">
+                            <Icon name="sparkles" className="text-purple-500" size={32} />
+                            <h1 className="text-4xl font-bold">Goal Quest</h1>
+                        </div>
+                        <p className="text-gray-400">
+                            Tell me your goal, and I'll create a personalized quest with daily activities to help you achieve it!
+                        </p>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <textarea
+                            className="textarea"
+                            placeholder="What goal would you like to achieve? (e.g., Help me get all A's by the end of the year)"
+                            value={goalRequest}
+                            onChange={(e) => setGoalRequest(e.target.value)}
+                            disabled={isGenerating}
+                        />
+
+                        <button 
+                            type="submit" 
+                            className="btn btn-primary w-full flex items-center justify-center gap-2"
+                            disabled={!goalRequest.trim() || isGenerating}
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <Icon name="sparkles" className="animate-spin" size={16} />
+                                    Creating Your Quest...
+                                </>
+                            ) : (
+                                <>
+                                    <Icon name="sparkles" size={16} />
+                                    Create My Quest
+                                </>
+                            )}
+                        </button>
+                    </form>
+
+                    <div className="space-y-3">
+                        <p className="text-sm text-gray-400">Try these examples:</p>
+                        <div className="grid grid-cols-1 gap-2">
+                            {exampleGoals.map((example, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => setGoalRequest(example)}
+                                    className="text-left p-3 rounded-lg border border-gray-700 hover:bg-gray-800 hover:border-purple-500 transition-colors text-sm"
+                                    disabled={isGenerating}
+                                >
+                                    {example}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function UserProfile({ xp, level }) {
+            const xpForNextLevel = level * 100;
+            const xpProgress = (xp / xpForNextLevel) * 100;
+            
+            const getLevelTitle = (level) => {
+                if (level < 5) return 'Novice Adventurer';
+                if (level < 10) return 'Aspiring Hero';
+                if (level < 20) return 'Skilled Warrior';
+                if (level < 30) return 'Master Achiever';
+                if (level < 50) return 'Legendary Champion';
+                return 'Goal Deity';
+            };
+
+            useEffect(() => {
+                lucide.createIcons();
+            });
+
+            return (
+                <div className="card p-6 bg-gradient-to-br from-purple-900/30 to-blue-900/30 border-purple-500/30">
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                                    <Icon name="trophy" className="text-white" size={32} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold flex items-center gap-2">
+                                        Level {level}
+                                        <Icon name="star" className="text-yellow-500" size={20} />
+                                    </h3>
+                                    <p className="text-sm text-gray-400">{getLevelTitle(level)}</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className="flex items-center gap-1 justify-end">
+                                    <Icon name="zap" className="text-purple-500" size={20} />
+                                    <span className="text-lg font-semibold">{xp} XP</span>
+                                </div>
+                                <p className="text-xs text-gray-400">
+                                    {xpForNextLevel - xp} XP to next level
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="flex justify-between text-xs text-gray-400">
+                                <span>Progress to Level {level + 1}</span>
+                                <span>{Math.floor(xpProgress)}%</span>
+                            </div>
+                            <div className="progress-bar">
+                                <div className="progress-fill" style={{ width: `${xpProgress}%` }}></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function GoalPlan({ goal }) {
+            useEffect(() => {
+                lucide.createIcons();
+            });
+
+            return (
+                <div className="card p-6 space-y-6">
+                    <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                            <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                                <Icon name="target" className="text-purple-500" size={24} />
+                            </div>
+                            <div className="flex-1">
+                                <h2 className="text-2xl font-bold">{goal.title}</h2>
+                                <p className="text-gray-400 mt-1">{goal.description}</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                            <Icon name="calendar-days" size={16} />
+                            <span>Target completion: {goal.deadline}</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                            <Icon name="list-checks" className="text-purple-500" size={20} />
+                            <h3 className="text-xl font-bold">Quest Milestones</h3>
+                        </div>
+
+                        <div className="space-y-3">
+                            {goal.milestones.map((milestone, index) => (
+                                <div
+                                    key={milestone.id}
+                                    className="flex gap-4 p-4 rounded-lg border border-gray-700 hover:border-purple-500/50 transition-colors"
+                                >
+                                    <div className="flex-shrink-0">
+                                        <div className="badge bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center">
+                                            {index + 1}
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 space-y-1">
+                                        <h4 className="font-semibold">{milestone.title}</h4>
+                                        <p className="text-sm text-gray-400">{milestone.description}</p>
+                                        <p className="text-xs text-purple-400">{milestone.timeframe}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function DailyActivities({ activities, onCompleteActivity, currentStreak }) {
+            const completedCount = activities.filter(a => a.completed).length;
+            const totalXP = activities.reduce((sum, a) => sum + a.xpReward, 0);
+            const earnedXP = activities.filter(a => a.completed).reduce((sum, a) => sum + a.xpReward, 0);
+
+            const getCategoryColor = (category) => {
+                const colors = {
+                    study: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
+                    practice: 'bg-green-500/20 text-green-400 border border-green-500/30',
+                    review: 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
+                    exercise: 'bg-orange-500/20 text-orange-400 border border-orange-500/30',
+                    planning: 'bg-pink-500/20 text-pink-400 border border-pink-500/30',
+                };
+                return colors[category.toLowerCase()] || 'bg-gray-500/20 text-gray-400 border border-gray-500/30';
+            };
+
+            useEffect(() => {
+                lucide.createIcons();
+            });
+
+            return (
+                <div className="space-y-4">
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="card p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                    <Icon name="calendar" className="text-blue-500" size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-400">Today's Progress</p>
+                                    <p className="text-lg font-semibold">{completedCount}/{activities.length} Tasks</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="card p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                                    <Icon name="zap" className="text-purple-500" size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-400">XP Today</p>
+                                    <p className="text-lg font-semibold">{earnedXP}/{totalXP} XP</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="card p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                                    <Icon name="flame" className="text-orange-500" size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-400">Current Streak</p>
+                                    <p className="text-lg font-semibold">{currentStreak} {currentStreak === 1 ? 'Day' : 'Days'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Activities List */}
+                    <div className="card p-6">
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-xl font-bold">Today's Quest Activities</h3>
+                                {completedCount === activities.length && activities.length > 0 && (
+                                    <div className="badge bg-green-500/20 text-green-400 border border-green-500/30 flex items-center gap-1">
+                                        <Icon name="check-circle-2" size={14} />
+                                        All Complete!
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-3">
+                                {activities.map((activity) => (
+                                    <div
+                                        key={activity.id}
+                                        className={`flex items-start gap-4 p-4 rounded-lg border transition-all fade-in ${
+                                            activity.completed
+                                                ? 'border-green-500/50 bg-green-500/5'
+                                                : 'border-gray-700 hover:border-purple-500/50'
+                                        }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            id={activity.id}
+                                            checked={activity.completed}
+                                            onChange={(e) => onCompleteActivity(activity.id)}
+                                            className="checkbox mt-1"
+                                        />
+
+                                        <div className="flex-1 space-y-2">
+                                            <div className="flex items-start justify-between gap-2 flex-wrap">
+                                                <label
+                                                    htmlFor={activity.id}
+                                                    className={`cursor-pointer font-medium ${
+                                                        activity.completed ? 'line-through text-gray-500' : ''
+                                                    }`}
+                                                >
+                                                    {activity.title}
+                                                </label>
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    <div className={`badge ${getCategoryColor(activity.category)}`}>
+                                                        {activity.category}
+                                                    </div>
+                                                    <div className="badge bg-gray-700 flex items-center gap-1">
+                                                        <Icon name="zap" size={12} />
+                                                        {activity.xpReward} XP
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p className="text-sm text-gray-400">{activity.description}</p>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {activities.length === 0 && (
+                                    <div className="text-center py-8 text-gray-400">
+                                        <p>No activities for today. Create a quest to get started!</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function LevelUpModal({ level, onClose }) {
+            useEffect(() => {
+                lucide.createIcons();
+            });
+
+            return (
+                <div className="modal-backdrop" onClick={onClose}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <button
+                            onClick={onClose}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+                        >
+                            <Icon name="x" size={20} />
+                        </button>
+
+                        <div className="text-center space-y-6">
+                            <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center relative">
+                                <Icon name="trophy" className="text-white" size={48} />
+                                <div className="absolute -top-2 -right-2">
+                                    <Icon name="sparkles" className="text-yellow-400" size={24} />
+                                </div>
+                                <div className="absolute -bottom-2 -left-2">
+                                    <Icon name="sparkles" className="text-yellow-400" size={24} />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h2 className="text-3xl font-bold">Level Up!</h2>
+                                <p className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                                    Level {level}
+                                </p>
+                                <p className="text-gray-400">
+                                    You're making amazing progress on your quest!
+                                </p>
+                            </div>
+
+                            <button onClick={onClose} className="btn btn-primary w-full">
+                                Continue Quest
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Main App
+        function App() {
+            const [isGenerating, setIsGenerating] = useState(false);
+            const [currentGoal, setCurrentGoal] = useState(null);
+            const [dailyActivities, setDailyActivities] = useState([]);
+            const [userData, setUserData] = useState({
+                xp: 0,
+                level: 1,
+                currentStreak: 0,
+                lastActivityDate: ''
+            });
+            const [showLevelUp, setShowLevelUp] = useState(false);
+            const [newLevel, setNewLevel] = useState(1);
+            const [toast, setToast] = useState(null);
+
+            // Load data from localStorage on mount
+            useEffect(() => {
+                const savedGoal = localStorage.getItem('currentGoal');
+                const savedActivities = localStorage.getItem('dailyActivities');
+                const savedUserData = localStorage.getItem('userData');
+
+                if (savedGoal) {
+                    setCurrentGoal(JSON.parse(savedGoal));
+                }
+                if (savedActivities) {
+                    setDailyActivities(JSON.parse(savedActivities));
+                }
+                if (savedUserData) {
+                    setUserData(JSON.parse(savedUserData));
+                }
+
+                lucide.createIcons();
+            }, []);
+
+            // Save data to localStorage whenever it changes
+            useEffect(() => {
+                if (currentGoal) {
+                    localStorage.setItem('currentGoal', JSON.stringify(currentGoal));
+                }
+            }, [currentGoal]);
+
+            useEffect(() => {
+                localStorage.setItem('dailyActivities', JSON.stringify(dailyActivities));
+            }, [dailyActivities]);
+
+            useEffect(() => {
+                localStorage.setItem('userData', JSON.stringify(userData));
+            }, [userData]);
+
+            useEffect(() => {
+                lucide.createIcons();
+            });
+
+            const showToast = (message) => {
+                setToast(message);
+                setTimeout(() => setToast(null), 3000);
+            };
+
+            const handleGenerateGoal = async (request) => {
+                setIsGenerating(true);
+                
+                // Simulate AI processing time
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                const generatedGoal = generateGoalFromRequest(request);
+                const activities = generateDailyActivities(generatedGoal);
+                
+                setCurrentGoal(generatedGoal);
+                setDailyActivities(activities);
+                setIsGenerating(false);
+                
+                showToast('Your quest has been created! Start completing activities to earn XP.');
+            };
+
+            const handleCompleteActivity = (activityId) => {
+                const activity = dailyActivities.find(a => a.id === activityId);
+                if (!activity || activity.completed) return;
+
+                // Update activities
+                const updatedActivities = dailyActivities.map(a =>
+                    a.id === activityId ? { ...a, completed: true } : a
+                );
+                setDailyActivities(updatedActivities);
+
+                // Calculate new XP and level
+                const newXP = userData.xp + activity.xpReward;
+                const xpForNextLevel = userData.level * 100;
+                let newUserLevel = userData.level;
+                let remainingXP = newXP;
+
+                // Check for level up
+                if (newXP >= xpForNextLevel) {
+                    newUserLevel = userData.level + 1;
+                    remainingXP = newXP - xpForNextLevel;
+                    setNewLevel(newUserLevel);
+                    setShowLevelUp(true);
+                    showToast(`Level Up! You've reached level ${newUserLevel}!`);
+                } else {
+                    showToast(`+${activity.xpReward} XP earned!`);
+                }
+
+                // Update streak
+                const today = new Date().toDateString();
+                const lastDate = userData.lastActivityDate;
+                let newStreak = userData.currentStreak;
+
+                if (lastDate !== today) {
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    
+                    if (lastDate === yesterday.toDateString()) {
+                        newStreak += 1;
+                    } else if (lastDate === '') {
+                        newStreak = 1;
+                    } else {
+                        newStreak = 1;
+                    }
+                }
+
+                setUserData({
+                    xp: remainingXP,
+                    level: newUserLevel,
+                    currentStreak: newStreak,
+                    lastActivityDate: today
+                });
+            };
+
+            const handleStartNewQuest = () => {
+                setCurrentGoal(null);
+                setDailyActivities([]);
+            };
+
+            const handleResetActivities = () => {
+                const resetActivities = dailyActivities.map(a => ({ ...a, completed: false }));
+                setDailyActivities(resetActivities);
+                showToast('Daily activities have been reset!');
+            };
+
+            return (
+                <div className="min-h-screen" style={{ background: '#0f172a' }}>
+                    <div className="container mx-auto px-4 py-8" style={{ maxWidth: '1280px' }}>
+                        {currentGoal && (
+                            <div className="mb-8 space-y-4">
+                                <UserProfile xp={userData.xp} level={userData.level} />
+                            </div>
+                        )}
+
+                        {!currentGoal ? (
+                            <div className="flex items-center justify-center min-h-screen">
+                                <GoalInput 
+                                    onGenerateGoal={handleGenerateGoal}
+                                    isGenerating={isGenerating}
+                                />
+                            </div>
+                        ) : (
+                            <div className="space-y-8">
+                                <div className="flex items-center justify-between flex-wrap gap-4">
+                                    <button
+                                        onClick={handleStartNewQuest}
+                                        className="btn btn-outline flex items-center gap-2"
+                                    >
+                                        <Icon name="arrow-left" size={16} />
+                                        Start New Quest
+                                    </button>
+                                    <button
+                                        onClick={handleResetActivities}
+                                        className="btn btn-outline"
+                                    >
+                                        Reset Today's Activities
+                                    </button>
+                                </div>
+
+                                <GoalPlan goal={currentGoal} />
+
+                                <DailyActivities 
+                                    activities={dailyActivities}
+                                    onCompleteActivity={handleCompleteActivity}
+                                    currentStreak={userData.currentStreak}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {showLevelUp && (
+                        <LevelUpModal 
+                            level={newLevel}
+                            onClose={() => setShowLevelUp(false)}
+                        />
+                    )}
+
+                    {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+                </div>
+            );
+        }
+
+        // Render the app
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
