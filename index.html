@@ -905,66 +905,6 @@
         }
 
         // Main App
-        async function generateQuestWithAI(userGoal) {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer YOUR_OPENAI_API_KEY"
-        },
-        body: JSON.stringify({
-            model: "gpt-4.1-mini",
-            temperature: 0.7,
-            max_tokens: 900,
-            messages: [
-                {
-                    role: "system",
-                    content: `
-You are a quest designer for a goal-gamification app.
-
-RULES:
-- Be extremely specific
-- No vague advice
-- No generic phrasing
-- Everything must be actionable
-- Assume the user is serious and wants real results
-
-OUTPUT STRICT JSON ONLY with this exact structure:
-
-{
-  "title": string,
-  "description": string,
-  "deadline": string,
-  "milestones": [
-    {
-      "id": string,
-      "title": string,
-      "description": string,
-      "timeframe": string
-    }
-  ],
-  "dailyActivities": [
-    {
-      "id": string,
-      "title": string,
-      "description": string,
-      "xpReward": number,
-      "category": "Study" | "Practice" | "Exercise" | "Planning" | "Review"
-    }
-  ]
-}`
-                },
-                {
-                    role: "user",
-                    content: `Create a detailed quest for this goal: ${userGoal}`
-                }
-            ]
-        })
-    });
-
-    const data = await response.json();
-    return JSON.parse(data.choices[0].message.content);
-}
 
         function App() {
             const [isGenerating, setIsGenerating] = useState(false);
@@ -1023,35 +963,23 @@ OUTPUT STRICT JSON ONLY with this exact structure:
                 setTimeout(() => setToast(null), 3000);
             };
 
-const handleGenerateGoal = async (request) => {
-    setIsGenerating(true);
+            const handleGenerateGoal = (request) => {
+                setIsGenerating(true);
 
-    try {
-        const aiQuest = await generateQuestWithAI(request);
+                const goal = generateGoalFromRequest(request);
 
-        setCurrentGoal({
-            id: "goal-" + Date.now(),
-            title: aiQuest.title,
-            description: aiQuest.description,
-            deadline: aiQuest.deadline,
-            milestones: aiQuest.milestones
-        });
+                setCurrentGoal(goal);
+                setDailyActivities(
+                    generateDailyActivities(goal).map(a => ({
+                        ...a,
+                        completed: false
+                    }))
+                );
 
-        setDailyActivities(
-            aiQuest.dailyActivities.map(a => ({
-                ...a,
-                completed: false
-            }))
-        );
+                showToast("Your quest is ready.");
+                setIsGenerating(false);
+            };
 
-        showToast("Your AI-generated quest is ready.");
-    } catch (error) {
-        console.error(error);
-        showToast("Failed to generate quest. Try again.");
-    }
-
-    setIsGenerating(false);
-};
 
             const handleCompleteActivity = (activityId) => {
                 const activity = dailyActivities.find(a => a.id === activityId);
