@@ -1024,17 +1024,34 @@ OUTPUT STRICT JSON ONLY with this exact structure:
             };
 
             const handleGenerateGoal = async (request) => {
-                setIsGenerating(true);
-                
-                // Simulate AI processing time
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                const generatedGoal = generateGoalFromRequest(request);
-                const activities = generateDailyActivities(generatedGoal);
-                
-                setCurrentGoal(generatedGoal);
-                setDailyActivities(activities);
-                setIsGenerating(false);
+    setIsGenerating(true);
+
+    try {
+        const aiQuest = await generateQuestWithAI(request);
+
+        setCurrentGoal({
+            id: "goal-" + Date.now(),
+            title: aiQuest.title,
+            description: aiQuest.description,
+            deadline: aiQuest.deadline,
+            milestones: aiQuest.milestones
+        });
+
+        setDailyActivities(
+            aiQuest.dailyActivities.map(a => ({
+                ...a,
+                completed: false
+            }))
+        );
+
+        showToast("Your AI-generated quest is ready.");
+    } catch (error) {
+        console.error(error);
+        showToast("Failed to generate quest. Try again.");
+    }
+
+    setIsGenerating(false);
+};
                 
                 showToast('Your quest has been created! Start completing activities to earn XP.');
             };
