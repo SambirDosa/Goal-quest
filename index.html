@@ -1023,7 +1023,7 @@ OUTPUT STRICT JSON ONLY with this exact structure:
                 setTimeout(() => setToast(null), 3000);
             };
 
-            const handleGenerateGoal = async (request) => {
+const handleGenerateGoal = async (request) => {
     setIsGenerating(true);
 
     try {
@@ -1052,9 +1052,6 @@ OUTPUT STRICT JSON ONLY with this exact structure:
 
     setIsGenerating(false);
 };
-                
-                showToast('Your quest has been created! Start completing activities to earn XP.');
-            };
 
             const handleCompleteActivity = (activityId) => {
                 const activity = dailyActivities.find(a => a.id === activityId);
